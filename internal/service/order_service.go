@@ -34,3 +34,17 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 	}
 	return o, nil
 }
+
+// ListMine returns paginated orders for the given user.
+func (s *OrderService) ListMine(ctx context.Context, userID uint64, limit, offset int) ([]model.Order, int64, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.orders.ListByUserID(ctx, userID, limit, offset)
+}

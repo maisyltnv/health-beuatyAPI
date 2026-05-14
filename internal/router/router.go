@@ -39,6 +39,7 @@ func New(
 		protected.PUT("/products/:id", productH.Update)
 		protected.DELETE("/products/:id", productH.Delete)
 
+		protected.GET("/orders", orderH.List)
 		protected.POST("/orders", orderH.Place)
 	}
 

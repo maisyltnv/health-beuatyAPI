@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"shopapi/internal/middleware"
 	"shopapi/internal/service"
@@ -48,4 +49,26 @@ func (h *OrderHandler) Place(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, o)
+}
+
+// List returns the authenticated user's orders (newest first).
+func (h *OrderHandler) List(c *gin.Context) {
+	uidVal, ok := c.Get(middleware.ContextUserIDKey)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	uid, ok := uidVal.(uint64)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	items, total, err := h.orders.ListMine(c.Request.Context(), uid, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items, "total": total})
 }
