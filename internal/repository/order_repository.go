@@ -77,3 +77,21 @@ func (r *OrderRepository) ListByUserID(ctx context.Context, userID uint64, limit
 		Find(&items).Error
 	return items, total, err
 }
+
+// ListByPhone returns orders matching the shipping phone (newest first).
+func (r *OrderRepository) ListByPhone(ctx context.Context, phone string, limit, offset int) ([]model.Order, int64, error) {
+	var items []model.Order
+	var total int64
+	q := r.db.WithContext(ctx).Model(&model.Order{}).Where("phone = ?", phone)
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.WithContext(ctx).
+		Where("phone = ?", phone).
+		Preload("Items").
+		Order("created_at DESC, id DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&items).Error
+	return items, total, err
+}

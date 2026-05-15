@@ -63,6 +63,7 @@ func New(
 
 	r.GET("/orders/shipping-config", orderH.ShippingConfig)
 	r.GET("/orders/shipping-quote", orderH.QuoteShipping)
+	r.GET("/ordersbyphone", orderH.ListByPhone)
 
 	protected := r.Group("")
 	protected.Use(middleware.JWTAuth(auth))

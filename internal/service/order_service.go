@@ -197,7 +197,7 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 		PaymentMethod:     strings.ToLower(strings.TrimSpace(in.PaymentMethod)),
 		PaymentReceiptURL: strings.TrimSpace(in.PaymentReceiptURL),
 		RecipientName:     strings.TrimSpace(shipping.RecipientName),
-		Phone:             strings.TrimSpace(shipping.Phone),
+		Phone:             NormalizePhone(shipping.Phone),
 		Province:          strings.TrimSpace(shipping.Province),
 		AddressDetail:     strings.TrimSpace(shipping.AddressDetail),
 	}
@@ -210,6 +210,60 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 // GetMine returns a single order for the user with items and products.
 func (s *OrderService) GetMine(ctx context.Context, userID, orderID uint64) (*model.Order, error) {
 	return s.orders.GetByUser(ctx, orderID, userID)
+}
+
+// NormalizePhone trims spaces; customers may type with or without spaces.
+func NormalizePhone(phone string) string {
+	p := strings.TrimSpace(phone)
+	p = strings.ReplaceAll(p, " ", "")
+	p = strings.ReplaceAll(p, "-", "")
+	return p
+}
+
+// OrderPageResult is a paginated list of orders (newest first).
+type OrderPageResult struct {
+	Items      []model.Order `json:"items"`
+	Page       int           `json:"page"`
+	Limit      int           `json:"limit"`
+	Total      int64         `json:"total"`
+	TotalPages int           `json:"total_pages"`
+	HasNext    bool          `json:"has_next"`
+	HasPrev    bool          `json:"has_prev"`
+}
+
+// ListByPhone returns paginated orders for a shipping phone (newest first).
+func (s *OrderService) ListByPhone(ctx context.Context, phone string, page, limit int) (*OrderPageResult, error) {
+	phone = NormalizePhone(phone)
+	if len(phone) < 8 {
+		return nil, errors.New("phone must be at least 8 characters")
+	}
+	if page < 1 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	offset := (page - 1) * limit
+	items, total, err := s.orders.ListByPhone(ctx, phone, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	totalPages := 0
+	if total > 0 {
+		totalPages = int((total + int64(limit) - 1) / int64(limit))
+	}
+	return &OrderPageResult{
+		Items:      items,
+		Page:       page,
+		Limit:      limit,
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    page < totalPages,
+		HasPrev:    page > 1 && totalPages > 0,
+	}, nil
 }
 
 // ListMine returns paginated orders for the given user (includes line items).

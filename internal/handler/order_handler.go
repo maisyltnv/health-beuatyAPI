@@ -39,6 +39,24 @@ type placeOrderRequest struct {
 	PaymentReceiptURL string             `json:"payment_receipt_url"`
 }
 
+// ListByPhone is a public endpoint for customers to track orders by shipping phone (no JWT).
+// Newest orders first. Pagination: ?phone=...&page=1&limit=10
+func (h *OrderHandler) ListByPhone(c *gin.Context) {
+	phone := c.Query("phone")
+	if phone == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "phone query parameter is required"})
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	res, err := h.orders.ListByPhone(c.Request.Context(), phone, page, limit)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func (h *OrderHandler) ShippingConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, h.orders.ShippingConfig())
 }
