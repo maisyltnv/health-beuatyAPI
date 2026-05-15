@@ -22,8 +22,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: shopapi-api
+    # Host port: inside container always 8080. If something else uses 8080 on your PC, set API_PORT=8081 in .env or the shell.
     ports:
-      - "8080:8080"
+      - "${API_PORT:-8080}:8080"
     environment:
       PORT: "8080"
       DATABASE_URL: postgres://postgres:postgres@db:5432/shopapi?sslmode=disable

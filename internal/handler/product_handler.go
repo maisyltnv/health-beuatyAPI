@@ -23,7 +23,7 @@ type createProductRequest struct {
 	Name             string   `json:"name" binding:"required"`
 	Description      string   `json:"description"`
 	ImageURL         string   `json:"image_url"`
-	Category         string   `json:"category"`
+	CategoryID       *uint64  `json:"category_id"`
 	OriginalPriceCNY float64  `json:"original_price_cny" binding:"required,gte=0"`
 	ExchangeRate     float64  `json:"exchange_rate" binding:"required,gte=0"`
 	ProfitMargin     float64  `json:"profit_margin" binding:"required,gte=-1"`
@@ -41,7 +41,7 @@ func (h *ProductHandler) Create(c *gin.Context) {
 		Name:             req.Name,
 		Description:      req.Description,
 		ImageURL:         req.ImageURL,
-		Category:         req.Category,
+		CategoryID:       req.CategoryID,
 		OriginalPriceCNY: req.OriginalPriceCNY,
 		ExchangeRate:     req.ExchangeRate,
 		ProfitMargin:     req.ProfitMargin,
@@ -76,7 +76,16 @@ func (h *ProductHandler) Get(c *gin.Context) {
 func (h *ProductHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, total, err := h.svc.List(c.Request.Context(), limit, offset)
+	var categoryID *uint64
+	if v := c.Query("category_id"); v != "" {
+		id, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid category_id"})
+			return
+		}
+		categoryID = &id
+	}
+	items, total, err := h.svc.List(c.Request.Context(), limit, offset, categoryID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -88,7 +97,8 @@ type updateProductRequest struct {
 	Name             *string  `json:"name"`
 	Description      *string  `json:"description"`
 	ImageURL         *string  `json:"image_url"`
-	Category         *string  `json:"category"`
+	ClearCategory    bool     `json:"clear_category"`
+	CategoryID       *uint64  `json:"category_id"`
 	OriginalPriceCNY *float64 `json:"original_price_cny"`
 	ExchangeRate     *float64 `json:"exchange_rate"`
 	ProfitMargin     *float64 `json:"profit_margin"`
@@ -111,7 +121,8 @@ func (h *ProductHandler) Update(c *gin.Context) {
 		Name:             req.Name,
 		Description:      req.Description,
 		ImageURL:         req.ImageURL,
-		Category:         req.Category,
+		ClearCategory:    req.ClearCategory,
+		CategoryID:       req.CategoryID,
 		OriginalPriceCNY: req.OriginalPriceCNY,
 		ExchangeRate:     req.ExchangeRate,
 		ProfitMargin:     req.ProfitMargin,

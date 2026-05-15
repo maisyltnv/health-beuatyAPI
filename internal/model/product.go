@@ -8,7 +8,8 @@ type Product struct {
 	Name              string    `gorm:"size:255;not null" json:"name"`
 	Description       string    `gorm:"type:text" json:"description"`
 	ImageURL          string    `gorm:"size:2048" json:"image_url"`
-	Category          string    `gorm:"size:128;index" json:"category"`
+	CategoryID        *uint64   `gorm:"index" json:"category_id,omitempty"`
+	Category          *Category `gorm:"foreignKey:CategoryID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:RESTRICT" json:"category,omitempty"`
 	OriginalPriceCNY  float64   `gorm:"type:decimal(18,4);not null" json:"original_price_cny"`
 	ExchangeRate      float64   `gorm:"type:decimal(18,8);not null" json:"exchange_rate"`
 	ProfitMargin      float64   `gorm:"type:decimal(10,6);not null" json:"profit_margin"`

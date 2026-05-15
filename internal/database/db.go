@@ -31,6 +31,7 @@ func New(dsn string) (*gorm.DB, error) {
 
 	if err := db.AutoMigrate(
 		&model.User{},
+		&model.Category{},
 		&model.Product{},
 		&model.Order{},
 	); err != nil {
