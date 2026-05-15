@@ -17,6 +17,7 @@ func New(
 	categoryH *handler.CategoryHandler,
 	productH *handler.ProductHandler,
 	orderH *handler.OrderHandler,
+	exchangeH *handler.ExchangeRateHandler,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
@@ -58,6 +59,8 @@ func New(
 	r.GET("/products", productH.List)
 	r.GET("/products/:id", productH.Get)
 
+	r.GET("/exchange-rate", exchangeH.Get)
+
 	protected := r.Group("")
 	protected.Use(middleware.JWTAuth(auth))
 	{
@@ -72,6 +75,8 @@ func New(
 		protected.GET("/orders", orderH.List)
 		protected.GET("/orders/:id", orderH.Get)
 		protected.POST("/orders", orderH.Place)
+
+		protected.PUT("/exchange-rate", middleware.RequireAdmin(), exchangeH.Set)
 	}
 
 	return r

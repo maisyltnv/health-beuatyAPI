@@ -54,9 +54,25 @@ func (r *ProductRepository) CountByCategoryID(ctx context.Context, categoryID ui
 }
 
 func (r *ProductRepository) Update(ctx context.Context, p *model.Product) error {
-	return r.db.WithContext(ctx).Save(p).Error
+	// Omit Category: a preloaded association can make Save() ignore category_id changes.
+	return r.db.WithContext(ctx).Omit("Category").Save(p).Error
 }
 
 func (r *ProductRepository) Delete(ctx context.Context, id uint64) error {
 	return r.db.WithContext(ctx).Delete(&model.Product{}, id).Error
+}
+
+func (r *ProductRepository) CountAll(ctx context.Context) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&model.Product{}).Count(&n).Error
+	return n, err
+}
+
+// ListAllForPricing returns every product row needed to recalculate LAK prices.
+func (r *ProductRepository) ListAllForPricing(ctx context.Context) ([]model.Product, error) {
+	var items []model.Product
+	err := r.db.WithContext(ctx).
+		Select("id", "original_price_cny", "profit_margin", "exchange_rate", "final_price_lak").
+		Find(&items).Error
+	return items, err
 }

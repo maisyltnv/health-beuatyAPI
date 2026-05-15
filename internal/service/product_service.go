@@ -125,11 +125,13 @@ func (s *ProductService) Update(ctx context.Context, id uint64, in UpdateProduct
 	}
 	if in.ClearCategory {
 		p.CategoryID = nil
+		p.Category = nil
 	} else if in.CategoryID != nil {
 		if err := s.validateCategory(ctx, in.CategoryID); err != nil {
 			return nil, err
 		}
 		p.CategoryID = in.CategoryID
+		p.Category = nil // drop stale preload before Save
 	}
 	if in.Name != nil {
 		p.Name = *in.Name

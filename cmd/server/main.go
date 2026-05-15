@@ -27,18 +27,21 @@ func main() {
 	categoryRepo := repository.NewCategoryRepository(db)
 	productRepo := repository.NewProductRepository(db)
 	orderRepo := repository.NewOrderRepository(db)
+	exchangeRepo := repository.NewExchangeRateRepository(db)
 
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryH)
 	categorySvc := service.NewCategoryService(categoryRepo, productRepo)
 	productSvc := service.NewProductService(productRepo, categoryRepo)
 	orderSvc := service.NewOrderService(orderRepo, productRepo)
+	exchangeSvc := service.NewExchangeRateService(exchangeRepo, productRepo)
 
 	authH := handler.NewAuthHandler(authSvc)
 	categoryH := handler.NewCategoryHandler(categorySvc)
 	productH := handler.NewProductHandler(productSvc)
 	orderH := handler.NewOrderHandler(orderSvc)
+	exchangeH := handler.NewExchangeRateHandler(exchangeSvc)
 
-	r := router.New(authSvc, authH, categoryH, productH, orderH)
+	r := router.New(authSvc, authH, categoryH, productH, orderH, exchangeH)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{
