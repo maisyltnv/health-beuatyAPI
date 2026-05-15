@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"shopapi/internal/model"
 
@@ -18,11 +19,17 @@ func NewOrderRepository(db *gorm.DB) *OrderRepository {
 }
 
 // CreateWithItems creates an order and its line items in one transaction.
+// OrderNumber is assigned after insert using the generated id (e.g. ORD-00000008).
 func (r *OrderRepository) CreateWithItems(ctx context.Context, o *model.Order, items []model.OrderItem) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(o).Error; err != nil {
 			return err
 		}
+		orderNumber := formatOrderNumber(o.ID)
+		if err := tx.Model(o).Update("order_number", orderNumber).Error; err != nil {
+			return err
+		}
+		o.OrderNumber = orderNumber
 		for i := range items {
 			items[i].OrderID = o.ID
 		}
@@ -33,6 +40,10 @@ func (r *OrderRepository) CreateWithItems(ctx context.Context, o *model.Order, i
 		}
 		return nil
 	})
+}
+
+func formatOrderNumber(id uint64) string {
+	return fmt.Sprintf("ORD-%08d", id)
 }
 
 // GetByUser returns one order if it belongs to the user, with line items and product refs.
@@ -49,7 +60,7 @@ func (r *OrderRepository) GetByUser(ctx context.Context, orderID, userID uint64)
 	return &o, nil
 }
 
-// ListByUserID returns orders for a user, newest first, with line items (no deep product preload).
+// ListByUserID returns orders for a user, newest first, with line items.
 func (r *OrderRepository) ListByUserID(ctx context.Context, userID uint64, limit, offset int) ([]model.Order, int64, error) {
 	var items []model.Order
 	var total int64

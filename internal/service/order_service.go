@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"sort"
+	"strings"
 
 	"shopapi/internal/model"
 	"shopapi/internal/repository"
@@ -16,12 +17,23 @@ const maxOrderQty = 9999
 
 // OrderService handles checkout: orders are built from product lines with server-side pricing.
 type OrderService struct {
-	orders   *repository.OrderRepository
-	products *repository.ProductRepository
+	orders                   *repository.OrderRepository
+	products                 *repository.ProductRepository
+	shippingFeeLAK           float64
+	freeShippingMinSubtotal  float64
 }
 
-func NewOrderService(orders *repository.OrderRepository, products *repository.ProductRepository) *OrderService {
-	return &OrderService{orders: orders, products: products}
+func NewOrderService(
+	orders *repository.OrderRepository,
+	products *repository.ProductRepository,
+	shippingFeeLAK, freeShippingMinSubtotal float64,
+) *OrderService {
+	return &OrderService{
+		orders:                  orders,
+		products:                products,
+		shippingFeeLAK:          shippingFeeLAK,
+		freeShippingMinSubtotal: freeShippingMinSubtotal,
+	}
 }
 
 type OrderLineInput struct {
@@ -29,21 +41,108 @@ type OrderLineInput struct {
 	Quantity  int
 }
 
+type ShippingInput struct {
+	RecipientName string
+	Phone         string
+	Province      string
+	AddressDetail string
+}
+
 type PlaceOrderInput struct {
 	UserID            uint64
 	Lines             []OrderLineInput
+	Shipping          ShippingInput
+	PaymentMethod     string
 	PaymentReceiptURL string
+}
+
+type ShippingConfigView struct {
+	ShippingFeeLAK            float64 `json:"shipping_fee_lak"`
+	FreeShippingMinSubtotalLAK float64 `json:"free_shipping_min_subtotal_lak"`
+}
+
+// ShippingConfig returns shop shipping rules for the checkout UI.
+func (s *OrderService) ShippingConfig() ShippingConfigView {
+	return ShippingConfigView{
+		ShippingFeeLAK:            s.shippingFeeLAK,
+		FreeShippingMinSubtotalLAK: s.freeShippingMinSubtotal,
+	}
+}
+
+type ShippingQuoteInput struct {
+	SubtotalLAK float64
+}
+
+type ShippingQuoteView struct {
+	SubtotalLAK               float64 `json:"subtotal_lak"`
+	ShippingFeeLAK            float64 `json:"shipping_fee_lak"`
+	TotalAmountLAK            float64 `json:"total_amount_lak"`
+	FreeShippingMinSubtotalLAK float64 `json:"free_shipping_min_subtotal_lak"`
+	AmountUntilFreeShippingLAK float64 `json:"amount_until_free_shipping_lak"`
+	FreeShippingApplied       bool    `json:"free_shipping_applied"`
+}
+
+// QuoteShipping estimates fees for a cart subtotal (matches checkout summary sidebar).
+func (s *OrderService) QuoteShipping(subtotalLAK float64) ShippingQuoteView {
+	subtotal := roundMoneyLAK(subtotalLAK)
+	fee := s.calcShippingFee(subtotal)
+	total := roundMoneyLAK(subtotal + fee)
+	untilFree := 0.0
+	if subtotal < s.freeShippingMinSubtotal {
+		untilFree = roundMoneyLAK(s.freeShippingMinSubtotal - subtotal)
+	}
+	return ShippingQuoteView{
+		SubtotalLAK:                subtotal,
+		ShippingFeeLAK:             fee,
+		TotalAmountLAK:             total,
+		FreeShippingMinSubtotalLAK: s.freeShippingMinSubtotal,
+		AmountUntilFreeShippingLAK: untilFree,
+		FreeShippingApplied:        fee == 0 && subtotal > 0,
+	}
+}
+
+func (s *OrderService) calcShippingFee(subtotalLAK float64) float64 {
+	if subtotalLAK >= s.freeShippingMinSubtotal {
+		return 0
+	}
+	return roundMoneyLAK(s.shippingFeeLAK)
 }
 
 func roundMoneyLAK(x float64) float64 {
 	return math.Round(x*100) / 100
 }
 
-// Place creates an order from product lines; total is computed from current product prices (no client total).
+func (s *OrderService) validatePaymentMethod(method string) error {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case model.PaymentMethodBCELQR, model.PaymentMethodCOD:
+		return nil
+	default:
+		return errors.New("payment_method must be bcel_qr or cod")
+	}
+}
+
+// Place creates an order from product lines; pricing and shipping are computed server-side.
 func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Order, error) {
 	if len(in.Lines) == 0 {
 		return nil, errors.New("order must have at least one line item")
 	}
+	if err := s.validatePaymentMethod(in.PaymentMethod); err != nil {
+		return nil, err
+	}
+	shipping := in.Shipping
+	if strings.TrimSpace(shipping.RecipientName) == "" {
+		return nil, errors.New("recipient_name is required")
+	}
+	if strings.TrimSpace(shipping.Phone) == "" {
+		return nil, errors.New("phone is required")
+	}
+	if strings.TrimSpace(shipping.Province) == "" {
+		return nil, errors.New("province is required")
+	}
+	if strings.TrimSpace(shipping.AddressDetail) == "" {
+		return nil, errors.New("address_detail is required")
+	}
+
 	merged := make(map[uint64]int)
 	for _, line := range in.Lines {
 		if line.ProductID == 0 {
@@ -59,7 +158,7 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 	}
 
 	var items []model.OrderItem
-	var total float64
+	var subtotal float64
 	pids := make([]uint64, 0, len(merged))
 	for pid := range merged {
 		pids = append(pids, pid)
@@ -83,15 +182,24 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 			Quantity:     qty,
 			LineTotalLAK: lineTotal,
 		})
-		total += lineTotal
+		subtotal += lineTotal
 	}
-	total = roundMoneyLAK(total)
+	subtotal = roundMoneyLAK(subtotal)
+	shippingFee := s.calcShippingFee(subtotal)
+	total := roundMoneyLAK(subtotal + shippingFee)
 
 	o := &model.Order{
 		UserID:            in.UserID,
+		SubtotalLAK:       subtotal,
+		ShippingFeeLAK:    shippingFee,
 		TotalAmountLAK:    total,
 		Status:            model.OrderStatusPending,
-		PaymentReceiptURL: in.PaymentReceiptURL,
+		PaymentMethod:     strings.ToLower(strings.TrimSpace(in.PaymentMethod)),
+		PaymentReceiptURL: strings.TrimSpace(in.PaymentReceiptURL),
+		RecipientName:     strings.TrimSpace(shipping.RecipientName),
+		Phone:             strings.TrimSpace(shipping.Phone),
+		Province:          strings.TrimSpace(shipping.Province),
+		AddressDetail:     strings.TrimSpace(shipping.AddressDetail),
 	}
 	if err := s.orders.CreateWithItems(ctx, o, items); err != nil {
 		return nil, err

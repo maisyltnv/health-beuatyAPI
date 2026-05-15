@@ -7,10 +7,12 @@ import (
 
 // Config holds runtime configuration loaded from the environment.
 type Config struct {
-	Port        string
-	DatabaseURL string
-	JWTSecret   string
-	JWTExpiryH  int
+	Port                      string
+	DatabaseURL               string
+	JWTSecret                 string
+	JWTExpiryH                int
+	ShippingFeeLAK            float64
+	FreeShippingMinSubtotalLAK float64
 }
 
 // Load reads configuration from environment variables with sensible defaults for local dev.
@@ -22,11 +24,25 @@ func Load() Config {
 		}
 	}
 	return Config{
-		Port:        getenv("PORT", "8080"),
-		DatabaseURL: getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/shopapi?sslmode=disable"),
-		JWTSecret:   getenv("JWT_SECRET", "change-me-in-production-use-long-random-secret"),
-		JWTExpiryH:  expiry,
+		Port:                       getenv("PORT", "8080"),
+		DatabaseURL:                getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/shopapi?sslmode=disable"),
+		JWTSecret:                  getenv("JWT_SECRET", "change-me-in-production-use-long-random-secret"),
+		JWTExpiryH:                 expiry,
+		ShippingFeeLAK:             getenvFloat("SHIPPING_FEE_LAK", 30000),
+		FreeShippingMinSubtotalLAK: getenvFloat("FREE_SHIPPING_MIN_SUBTOTAL_LAK", 500000),
 	}
+}
+
+func getenvFloat(key string, fallback float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseFloat(v, 64)
+	if err != nil || n < 0 {
+		return fallback
+	}
+	return n
 }
 
 func getenv(key, fallback string) string {

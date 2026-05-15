@@ -25,9 +25,31 @@ type orderLineRequest struct {
 	Quantity  int    `json:"quantity" binding:"required,min=1,max=9999"`
 }
 
+type shippingRequest struct {
+	RecipientName string `json:"recipient_name" binding:"required"`
+	Phone         string `json:"phone" binding:"required"`
+	Province      string `json:"province" binding:"required"`
+	AddressDetail string `json:"address_detail" binding:"required"`
+}
+
 type placeOrderRequest struct {
-	Items               []orderLineRequest `json:"items" binding:"required,min=1,dive"`
-	PaymentReceiptURL   string             `json:"payment_receipt_url"`
+	Items             []orderLineRequest `json:"items" binding:"required,min=1,dive"`
+	Shipping          shippingRequest    `json:"shipping" binding:"required"`
+	PaymentMethod     string             `json:"payment_method" binding:"required,oneof=bcel_qr cod"`
+	PaymentReceiptURL string             `json:"payment_receipt_url"`
+}
+
+func (h *OrderHandler) ShippingConfig(c *gin.Context) {
+	c.JSON(http.StatusOK, h.orders.ShippingConfig())
+}
+
+func (h *OrderHandler) QuoteShipping(c *gin.Context) {
+	subtotal, err := strconv.ParseFloat(c.DefaultQuery("subtotal_lak", "0"), 64)
+	if err != nil || subtotal < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid subtotal_lak"})
+		return
+	}
+	c.JSON(http.StatusOK, h.orders.QuoteShipping(subtotal))
 }
 
 func (h *OrderHandler) Place(c *gin.Context) {
@@ -51,8 +73,15 @@ func (h *OrderHandler) Place(c *gin.Context) {
 		lines = append(lines, service.OrderLineInput{ProductID: it.ProductID, Quantity: it.Quantity})
 	}
 	o, err := h.orders.Place(c.Request.Context(), service.PlaceOrderInput{
-		UserID:            uid,
-		Lines:             lines,
+		UserID: uid,
+		Lines:  lines,
+		Shipping: service.ShippingInput{
+			RecipientName: req.Shipping.RecipientName,
+			Phone:         req.Shipping.Phone,
+			Province:      req.Shipping.Province,
+			AddressDetail: req.Shipping.AddressDetail,
+		},
+		PaymentMethod:     req.PaymentMethod,
 		PaymentReceiptURL: req.PaymentReceiptURL,
 	})
 	if err != nil {

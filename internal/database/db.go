@@ -40,6 +40,15 @@ func New(dsn string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 
+	// Backfill order_number for rows created before checkout fields were added.
+	if err := db.Exec(`
+		UPDATE orders
+		SET order_number = 'ORD-' || LPAD(id::text, 8, '0')
+		WHERE order_number IS NULL OR order_number = ''
+	`).Error; err != nil {
+		return nil, fmt.Errorf("backfill order_number: %w", err)
+	}
+
 	log.Println("database connected and migrations applied")
 	return db, nil
 }

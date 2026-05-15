@@ -61,6 +61,9 @@ func New(
 
 	r.GET("/exchange-rate", exchangeH.Get)
 
+	r.GET("/orders/shipping-config", orderH.ShippingConfig)
+	r.GET("/orders/shipping-quote", orderH.QuoteShipping)
+
 	protected := r.Group("")
 	protected.Use(middleware.JWTAuth(auth))
 	{
