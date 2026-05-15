@@ -34,6 +34,7 @@ func New(dsn string) (*gorm.DB, error) {
 		&model.Category{},
 		&model.Product{},
 		&model.Order{},
+		&model.OrderItem{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}

@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+// Role values stored on users.role.
+const (
+	RoleUser  = "user"
+	RoleAdmin = "admin"
+)
+
 // User represents an application account.
 type User struct {
 	ID           uint64    `gorm:"primaryKey" json:"id"`

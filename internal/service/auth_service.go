@@ -33,15 +33,12 @@ func NewAuthService(users *repository.UserRepository, jwtSecret string, expiryHo
 type RegisterInput struct {
 	Username string
 	Password string
-	Role     string
 }
 
+// Register creates a storefront customer account (role is always user).
 func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*model.User, error) {
 	if len(in.Password) < 8 {
 		return nil, errors.New("password too short")
-	}
-	if in.Role == "" {
-		in.Role = "user"
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -50,7 +47,32 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*model.Us
 	u := &model.User{
 		Username:     in.Username,
 		PasswordHash: string(hash),
-		Role:         in.Role,
+		Role:         model.RoleUser,
+	}
+	if err := s.users.Create(ctx, u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+type RegisterAdminInput struct {
+	Username string
+	Password string
+}
+
+// RegisterAdmin creates an admin user (no shared secret — do not expose this endpoint on the public internet).
+func (s *AuthService) RegisterAdmin(ctx context.Context, in RegisterAdminInput) (*model.User, error) {
+	if len(in.Password) < 8 {
+		return nil, errors.New("password too short")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(in.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+	u := &model.User{
+		Username:     in.Username,
+		PasswordHash: string(hash),
+		Role:         model.RoleAdmin,
 	}
 	if err := s.users.Create(ctx, u); err != nil {
 		return nil, err
@@ -68,7 +90,17 @@ type TokenPair struct {
 	ExpiresAt time.Time
 }
 
+// Login issues a JWT for any valid user (customer or admin).
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (*model.User, *TokenPair, error) {
+	return s.login(ctx, in, "")
+}
+
+// LoginAdmin issues a JWT only if the user exists and has admin role.
+func (s *AuthService) LoginAdmin(ctx context.Context, in LoginInput) (*model.User, *TokenPair, error) {
+	return s.login(ctx, in, model.RoleAdmin)
+}
+
+func (s *AuthService) login(ctx context.Context, in LoginInput, requireRole string) (*model.User, *TokenPair, error) {
 	u, err := s.users.GetByUsername(ctx, in.Username)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -77,6 +109,9 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*model.User, *T
 		return nil, nil, err
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(in.Password)) != nil {
+		return nil, nil, errors.New("invalid credentials")
+	}
+	if requireRole != "" && u.Role != requireRole {
 		return nil, nil, errors.New("invalid credentials")
 	}
 	exp := time.Now().Add(time.Duration(s.expiryH) * time.Hour)

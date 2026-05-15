@@ -23,7 +23,7 @@ type createProductRequest struct {
 	Name             string   `json:"name" binding:"required"`
 	Description      string   `json:"description"`
 	ImageURL         string   `json:"image_url"`
-	CategoryID       *uint64  `json:"category_id"`
+	CategoryID       *uint64  `json:"category_id" binding:"required"`
 	OriginalPriceCNY float64  `json:"original_price_cny" binding:"required,gte=0"`
 	ExchangeRate     float64  `json:"exchange_rate" binding:"required,gte=0"`
 	ProfitMargin     float64  `json:"profit_margin" binding:"required,gte=-1"`

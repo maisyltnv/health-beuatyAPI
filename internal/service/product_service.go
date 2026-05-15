@@ -30,7 +30,10 @@ func NewProductService(repo *repository.ProductRepository, category *repository.
 
 func (s *ProductService) validateCategory(ctx context.Context, categoryID *uint64) error {
 	if categoryID == nil {
-		return nil
+		return errors.New("category_id is required")
+	}
+	if *categoryID == 0 {
+		return errors.New("invalid category_id")
 	}
 	cat, err := s.category.GetByID(ctx, *categoryID)
 	if err != nil {

@@ -45,6 +45,10 @@ func New(
 		authGroup.POST("/register", authH.Register)
 		authGroup.POST("/login", authH.Login)
 		authGroup.GET("/me", middleware.JWTAuth(auth), authH.Me)
+
+		authGroup.POST("/admin/register", authH.AdminRegister)
+		authGroup.POST("/admin/login", authH.AdminLogin)
+		authGroup.GET("/admin/me", middleware.JWTAuth(auth), middleware.RequireAdmin(), authH.AdminMe)
 	}
 
 	r.GET("/categories", categoryH.List)
@@ -66,6 +70,7 @@ func New(
 		protected.DELETE("/products/:id", productH.Delete)
 
 		protected.GET("/orders", orderH.List)
+		protected.GET("/orders/:id", orderH.Get)
 		protected.POST("/orders", orderH.Place)
 	}
 

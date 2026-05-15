@@ -31,7 +31,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret, cfg.JWTExpiryH)
 	categorySvc := service.NewCategoryService(categoryRepo, productRepo)
 	productSvc := service.NewProductService(productRepo, categoryRepo)
-	orderSvc := service.NewOrderService(orderRepo)
+	orderSvc := service.NewOrderService(orderRepo, productRepo)
 
 	authH := handler.NewAuthHandler(authSvc)
 	categoryH := handler.NewCategoryHandler(categorySvc)
