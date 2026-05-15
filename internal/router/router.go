@@ -79,6 +79,7 @@ func New(
 		protected.GET("/orders", orderH.List)
 		protected.GET("/orders/:id", orderH.Get)
 		protected.POST("/orders", orderH.Place)
+		protected.PUT("/orders/:id/status", middleware.RequireAdmin(), orderH.UpdateStatus)
 
 		protected.PUT("/exchange-rate", middleware.RequireAdmin(), exchangeH.Set)
 	}

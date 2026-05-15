@@ -6,11 +6,28 @@ import "time"
 type OrderStatus string
 
 const (
-	OrderStatusPending   OrderStatus = "pending"
-	OrderStatusPaid      OrderStatus = "paid"
-	OrderStatusShipped   OrderStatus = "shipped"
-	OrderStatusCancelled OrderStatus = "cancelled"
+	OrderStatusPending    OrderStatus = "pending"
+	OrderStatusProcessing OrderStatus = "processing"
+	OrderStatusDelivered  OrderStatus = "delivered"
+	OrderStatusCompleted  OrderStatus = "completed"
 )
+
+// ValidOrderStatuses lists allowed status values for API validation.
+var ValidOrderStatuses = []OrderStatus{
+	OrderStatusPending,
+	OrderStatusProcessing,
+	OrderStatusDelivered,
+	OrderStatusCompleted,
+}
+
+func IsValidOrderStatus(s OrderStatus) bool {
+	for _, v := range ValidOrderStatuses {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
 
 // PaymentMethod values for checkout.
 const (

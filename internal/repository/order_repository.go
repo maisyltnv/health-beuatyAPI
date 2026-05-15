@@ -46,6 +46,33 @@ func formatOrderNumber(id uint64) string {
 	return fmt.Sprintf("ORD-%08d", id)
 }
 
+// GetByID returns an order by primary key with line items.
+func (r *OrderRepository) GetByID(ctx context.Context, orderID uint64) (*model.Order, error) {
+	var o model.Order
+	err := r.db.WithContext(ctx).
+		Preload("Items").
+		Preload("Items.Product").
+		First(&o, orderID).Error
+	if err != nil {
+		return nil, err
+	}
+	return &o, nil
+}
+
+// UpdateStatus sets the order status.
+func (r *OrderRepository) UpdateStatus(ctx context.Context, orderID uint64, status model.OrderStatus) error {
+	res := r.db.WithContext(ctx).Model(&model.Order{}).
+		Where("id = ?", orderID).
+		Update("status", status)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 // GetByUser returns one order if it belongs to the user, with line items and product refs.
 func (r *OrderRepository) GetByUser(ctx context.Context, orderID, userID uint64) (*model.Order, error) {
 	var o model.Order

@@ -212,6 +212,33 @@ func (s *OrderService) GetMine(ctx context.Context, userID, orderID uint64) (*mo
 	return s.orders.GetByUser(ctx, orderID, userID)
 }
 
+// ParseOrderStatus normalizes client input (case-insensitive).
+func ParseOrderStatus(raw string) (model.OrderStatus, error) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case string(model.OrderStatusPending):
+		return model.OrderStatusPending, nil
+	case string(model.OrderStatusProcessing):
+		return model.OrderStatusProcessing, nil
+	case string(model.OrderStatusDelivered):
+		return model.OrderStatusDelivered, nil
+	case string(model.OrderStatusCompleted):
+		return model.OrderStatusCompleted, nil
+	default:
+		return "", errors.New("status must be one of: pending, processing, delivered, completed")
+	}
+}
+
+// UpdateStatus updates order status (admin).
+func (s *OrderService) UpdateStatus(ctx context.Context, orderID uint64, status model.OrderStatus) (*model.Order, error) {
+	if !model.IsValidOrderStatus(status) {
+		return nil, errors.New("invalid order status")
+	}
+	if err := s.orders.UpdateStatus(ctx, orderID, status); err != nil {
+		return nil, err
+	}
+	return s.orders.GetByID(ctx, orderID)
+}
+
 // NormalizePhone trims spaces; customers may type with or without spaces.
 func NormalizePhone(phone string) string {
 	p := strings.TrimSpace(phone)

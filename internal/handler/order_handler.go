@@ -132,6 +132,39 @@ func (h *OrderHandler) List(c *gin.Context) {
 }
 
 // Get returns one order for the authenticated user (with items and product snapshots).
+type updateOrderStatusRequest struct {
+	Status string `json:"status" binding:"required"`
+}
+
+// UpdateStatus sets order status (admin): pending | processing | delivered | completed.
+func (h *OrderHandler) UpdateStatus(c *gin.Context) {
+	id, err := parseUintParam(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	var req updateOrderStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	status, err := service.ParseOrderStatus(req.Status)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	o, err := h.orders.UpdateStatus(c.Request.Context(), id, status)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, o)
+}
+
 func (h *OrderHandler) Get(c *gin.Context) {
 	uidVal, ok := c.Get(middleware.ContextUserIDKey)
 	if !ok {
