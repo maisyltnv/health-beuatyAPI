@@ -136,7 +136,7 @@ type updateOrderStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
 
-// UpdateStatus sets order status (admin): pending | processing | delivered | completed.
+// UpdateStatus sets order status (admin): pending | processing | shipped | delivered.
 func (h *OrderHandler) UpdateStatus(c *gin.Context) {
 	id, err := parseUintParam(c.Param("id"))
 	if err != nil {

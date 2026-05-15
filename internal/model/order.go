@@ -8,16 +8,16 @@ type OrderStatus string
 const (
 	OrderStatusPending    OrderStatus = "pending"
 	OrderStatusProcessing OrderStatus = "processing"
+	OrderStatusShipped    OrderStatus = "shipped"
 	OrderStatusDelivered  OrderStatus = "delivered"
-	OrderStatusCompleted  OrderStatus = "completed"
 )
 
 // ValidOrderStatuses lists allowed status values for API validation.
 var ValidOrderStatuses = []OrderStatus{
 	OrderStatusPending,
 	OrderStatusProcessing,
+	OrderStatusShipped,
 	OrderStatusDelivered,
-	OrderStatusCompleted,
 }
 
 func IsValidOrderStatus(s OrderStatus) bool {

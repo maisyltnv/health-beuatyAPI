@@ -219,12 +219,12 @@ func ParseOrderStatus(raw string) (model.OrderStatus, error) {
 		return model.OrderStatusPending, nil
 	case string(model.OrderStatusProcessing):
 		return model.OrderStatusProcessing, nil
+	case string(model.OrderStatusShipped):
+		return model.OrderStatusShipped, nil
 	case string(model.OrderStatusDelivered):
 		return model.OrderStatusDelivered, nil
-	case string(model.OrderStatusCompleted):
-		return model.OrderStatusCompleted, nil
 	default:
-		return "", errors.New("status must be one of: pending, processing, delivered, completed")
+		return "", errors.New("status must be one of: pending, processing, shipped, delivered")
 	}
 }
 

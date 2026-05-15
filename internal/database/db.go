@@ -48,10 +48,10 @@ func New(dsn string) (*gorm.DB, error) {
 	`).Error; err != nil {
 		return nil, fmt.Errorf("backfill order_number: %w", err)
 	}
-	// Map legacy statuses to the new workflow labels.
+	// Map legacy statuses to the current workflow labels.
 	if err := db.Exec(`
 		UPDATE orders SET status = 'processing' WHERE status = 'paid';
-		UPDATE orders SET status = 'delivered' WHERE status = 'shipped';
+		UPDATE orders SET status = 'delivered' WHERE status = 'completed';
 	`).Error; err != nil {
 		return nil, fmt.Errorf("migrate order status: %w", err)
 	}
