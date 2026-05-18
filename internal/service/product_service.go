@@ -105,14 +105,14 @@ func (s *ProductService) GetByID(ctx context.Context, id uint64) (*model.Product
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *ProductService) List(ctx context.Context, limit, offset int, categoryID *uint64) ([]model.Product, int64, error) {
+func (s *ProductService) List(ctx context.Context, limit, offset int, categoryID *uint64, search string) ([]model.Product, int64, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 50
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	return s.repo.List(ctx, limit, offset, categoryID)
+	return s.repo.List(ctx, limit, offset, categoryID, search)
 }
 
 func (s *ProductService) Update(ctx context.Context, id uint64, in UpdateProductInput) (*model.Product, error) {

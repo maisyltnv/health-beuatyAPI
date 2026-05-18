@@ -1,17 +1,19 @@
+name: health-and-beauty-api
+
 services:
   db:
     image: postgres:16-alpine
-    container_name: shopapi-db
+    container_name: health-and-beauty-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: shopapi
+      POSTGRES_DB: health_and_beauty
     ports:
       - "5432:5432"
     volumes:
-      - shopapi_pgdata:/var/lib/postgresql/data
+      - health_and_beauty_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d shopapi"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d health_and_beauty"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,13 +23,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: shopapi-api
-    # Host port: inside container always 8080. If something else uses 8080 on your PC, set API_PORT=8081 in .env or the shell.
+    container_name: health-and-beauty-api
+    image: health-and-beauty-api:latest
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
       PORT: "8080"
-      DATABASE_URL: postgres://postgres:postgres@db:5432/shopapi?sslmode=disable
+      DATABASE_URL: postgres://postgres:postgres@db:5432/health_and_beauty?sslmode=disable
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-use-long-random-secret}
       JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-72}
       SHIPPING_FEE_LAK: ${SHIPPING_FEE_LAK:-30000}
@@ -37,4 +39,4 @@ services:
         condition: service_healthy
 
 volumes:
-  shopapi_pgdata:
+  health_and_beauty_pgdata:

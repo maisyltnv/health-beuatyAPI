@@ -87,6 +87,24 @@ func (r *OrderRepository) GetByUser(ctx context.Context, orderID, userID uint64)
 	return &o, nil
 }
 
+// ListAll returns every order, newest first, with line items (admin).
+func (r *OrderRepository) ListAll(ctx context.Context, limit, offset int) ([]model.Order, int64, error) {
+	var items []model.Order
+	var total int64
+	q := r.db.WithContext(ctx).Model(&model.Order{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := r.db.WithContext(ctx).
+		Preload("Items").
+		Preload("Items.Product").
+		Order("created_at DESC, id DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&items).Error
+	return items, total, err
+}
+
 // ListByUserID returns orders for a user, newest first, with line items.
 func (r *OrderRepository) ListByUserID(ctx context.Context, userID uint64, limit, offset int) ([]model.Order, int64, error) {
 	var items []model.Order

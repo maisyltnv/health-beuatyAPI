@@ -18,6 +18,7 @@ func New(
 	productH *handler.ProductHandler,
 	orderH *handler.OrderHandler,
 	exchangeH *handler.ExchangeRateHandler,
+	bannerH *handler.BannerHandler,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
@@ -61,8 +62,12 @@ func New(
 
 	r.GET("/exchange-rate", exchangeH.Get)
 
+	r.GET("/banners", middleware.OptionalJWTAuth(auth), bannerH.List)
+	r.GET("/banners/:id", middleware.OptionalJWTAuth(auth), bannerH.Get)
+
 	r.GET("/orders/shipping-config", orderH.ShippingConfig)
 	r.GET("/orders/shipping-quote", orderH.QuoteShipping)
+	r.POST("/orders", orderH.Place)
 	r.GET("/ordersbyphone", orderH.ListByPhone)
 
 	protected := r.Group("")
@@ -76,12 +81,15 @@ func New(
 		protected.PUT("/products/:id", productH.Update)
 		protected.DELETE("/products/:id", productH.Delete)
 
-		protected.GET("/orders", orderH.List)
+		protected.GET("/orders", middleware.RequireAdmin(), orderH.List)
 		protected.GET("/orders/:id", orderH.Get)
-		protected.POST("/orders", orderH.Place)
 		protected.PUT("/orders/:id/status", middleware.RequireAdmin(), orderH.UpdateStatus)
 
 		protected.PUT("/exchange-rate", middleware.RequireAdmin(), exchangeH.Set)
+
+		protected.POST("/banners", middleware.RequireAdmin(), bannerH.Create)
+		protected.PUT("/banners/:id", middleware.RequireAdmin(), bannerH.Update)
+		protected.DELETE("/banners/:id", middleware.RequireAdmin(), bannerH.Delete)
 	}
 
 	return r

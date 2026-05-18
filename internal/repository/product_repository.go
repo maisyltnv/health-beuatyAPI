@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"strings"
 
 	"shopapi/internal/model"
 
@@ -29,13 +30,28 @@ func (r *ProductRepository) GetByID(ctx context.Context, id uint64) (*model.Prod
 	return &p, nil
 }
 
-// List returns products with category preloaded. If categoryID is non-nil, only that category.
-func (r *ProductRepository) List(ctx context.Context, limit, offset int, categoryID *uint64) ([]model.Product, int64, error) {
+func likePattern(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `%`, `\%`)
+	s = strings.ReplaceAll(s, `_`, `\_`)
+	return "%" + s + "%"
+}
+
+// List returns products with category preloaded.
+// Optional filters: categoryID, search query (name/description, case-insensitive).
+func (r *ProductRepository) List(ctx context.Context, limit, offset int, categoryID *uint64, search string) ([]model.Product, int64, error) {
 	var items []model.Product
 	var total int64
 	q := r.db.WithContext(ctx).Model(&model.Product{})
 	if categoryID != nil {
 		q = q.Where("category_id = ?", *categoryID)
+	}
+	if pattern := likePattern(search); pattern != "" {
+		q = q.Where("name ILIKE ? OR description ILIKE ?", pattern, pattern)
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err

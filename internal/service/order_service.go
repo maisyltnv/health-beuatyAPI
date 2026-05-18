@@ -204,12 +204,20 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 	if err := s.orders.CreateWithItems(ctx, o, items); err != nil {
 		return nil, err
 	}
+	if in.UserID == 0 {
+		return s.orders.GetByID(ctx, o.ID)
+	}
 	return s.orders.GetByUser(ctx, o.ID, in.UserID)
 }
 
 // GetMine returns a single order for the user with items and products.
 func (s *OrderService) GetMine(ctx context.Context, userID, orderID uint64) (*model.Order, error) {
 	return s.orders.GetByUser(ctx, orderID, userID)
+}
+
+// GetByID returns any order by id (admin).
+func (s *OrderService) GetByID(ctx context.Context, orderID uint64) (*model.Order, error) {
+	return s.orders.GetByID(ctx, orderID)
 }
 
 // ParseOrderStatus normalizes client input (case-insensitive).
@@ -295,6 +303,17 @@ func (s *OrderService) ListByPhone(ctx context.Context, phone string, page, limi
 
 // ListMine returns paginated orders for the given user (includes line items).
 func (s *OrderService) ListMine(ctx context.Context, userID uint64, limit, offset int) ([]model.Order, int64, error) {
+	limit, offset = normalizeOrderPagination(limit, offset)
+	return s.orders.ListByUserID(ctx, userID, limit, offset)
+}
+
+// ListAll returns paginated orders for every customer (admin).
+func (s *OrderService) ListAll(ctx context.Context, limit, offset int) ([]model.Order, int64, error) {
+	limit, offset = normalizeOrderPagination(limit, offset)
+	return s.orders.ListAll(ctx, limit, offset)
+}
+
+func normalizeOrderPagination(limit, offset int) (int, int) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -304,5 +323,5 @@ func (s *OrderService) ListMine(ctx context.Context, userID uint64, limit, offse
 	if offset < 0 {
 		offset = 0
 	}
-	return s.orders.ListByUserID(ctx, userID, limit, offset)
+	return limit, offset
 }

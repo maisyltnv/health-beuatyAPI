@@ -36,6 +36,7 @@ func New(dsn string) (*gorm.DB, error) {
 		&model.Order{},
 		&model.OrderItem{},
 		&model.ExchangeRateConfig{},
+		&model.Banner{},
 	); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}

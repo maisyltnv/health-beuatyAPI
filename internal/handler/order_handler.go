@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"shopapi/internal/middleware"
+	"shopapi/internal/model"
 	"shopapi/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -70,17 +71,8 @@ func (h *OrderHandler) QuoteShipping(c *gin.Context) {
 	c.JSON(http.StatusOK, h.orders.QuoteShipping(subtotal))
 }
 
+// Place creates an order (public — no login required; guest orders use user_id 0).
 func (h *OrderHandler) Place(c *gin.Context) {
-	uidVal, ok := c.Get(middleware.ContextUserIDKey)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	uid, ok := uidVal.(uint64)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
 	var req placeOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -91,7 +83,7 @@ func (h *OrderHandler) Place(c *gin.Context) {
 		lines = append(lines, service.OrderLineInput{ProductID: it.ProductID, Quantity: it.Quantity})
 	}
 	o, err := h.orders.Place(c.Request.Context(), service.PlaceOrderInput{
-		UserID: uid,
+		UserID: 0,
 		Lines:  lines,
 		Shipping: service.ShippingInput{
 			RecipientName: req.Shipping.RecipientName,
@@ -109,21 +101,11 @@ func (h *OrderHandler) Place(c *gin.Context) {
 	c.JSON(http.StatusCreated, o)
 }
 
-// List returns the authenticated user's orders (newest first), each with line items.
+// List returns all orders (admin only).
 func (h *OrderHandler) List(c *gin.Context) {
-	uidVal, ok := c.Get(middleware.ContextUserIDKey)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-	uid, ok := uidVal.(uint64)
-	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-	items, total, err := h.orders.ListMine(c.Request.Context(), uid, limit, offset)
+	items, total, err := h.orders.ListAll(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -131,7 +113,7 @@ func (h *OrderHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items, "total": total})
 }
 
-// Get returns one order for the authenticated user (with items and product snapshots).
+// Get returns one order (own order for customers; any order for admin).
 type updateOrderStatusRequest struct {
 	Status string `json:"status" binding:"required"`
 }
@@ -181,7 +163,16 @@ func (h *OrderHandler) Get(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	o, err := h.orders.GetMine(c.Request.Context(), uid, id)
+
+	role, _ := c.Get(middleware.ContextRoleKey)
+	roleStr, _ := role.(string)
+
+	var o *model.Order
+	if roleStr == model.RoleAdmin {
+		o, err = h.orders.GetByID(c.Request.Context(), id)
+	} else {
+		o, err = h.orders.GetMine(c.Request.Context(), uid, id)
+	}
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})

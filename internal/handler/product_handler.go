@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"shopapi/internal/service"
 
@@ -85,7 +86,11 @@ func (h *ProductHandler) List(c *gin.Context) {
 		}
 		categoryID = &id
 	}
-	items, total, err := h.svc.List(c.Request.Context(), limit, offset, categoryID)
+	search := strings.TrimSpace(c.Query("q"))
+	if search == "" {
+		search = strings.TrimSpace(c.Query("search"))
+	}
+	items, total, err := h.svc.List(c.Request.Context(), limit, offset, categoryID, search)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
