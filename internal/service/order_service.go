@@ -129,6 +129,10 @@ func (s *OrderService) Place(ctx context.Context, in PlaceOrderInput) (*model.Or
 	if err := s.validatePaymentMethod(in.PaymentMethod); err != nil {
 		return nil, err
 	}
+	if strings.EqualFold(strings.TrimSpace(in.PaymentMethod), model.PaymentMethodBCELQR) &&
+		strings.TrimSpace(in.PaymentReceiptURL) == "" {
+		return nil, errors.New("payment_receipt is required for bcel_qr")
+	}
 	shipping := in.Shipping
 	if strings.TrimSpace(shipping.RecipientName) == "" {
 		return nil, errors.New("recipient_name is required")

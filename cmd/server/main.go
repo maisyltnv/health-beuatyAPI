@@ -10,6 +10,7 @@ import (
 	"shopapi/internal/repository"
 	"shopapi/internal/router"
 	"shopapi/internal/service"
+	"shopapi/internal/upload"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,11 +41,16 @@ func main() {
 	authH := handler.NewAuthHandler(authSvc)
 	categoryH := handler.NewCategoryHandler(categorySvc)
 	productH := handler.NewProductHandler(productSvc)
-	orderH := handler.NewOrderHandler(orderSvc)
+	receiptStore, err := upload.NewPaymentReceiptStore(cfg.UploadDir, cfg.UploadURLPrefix)
+	if err != nil {
+		log.Fatalf("uploads: %v", err)
+	}
+
+	orderH := handler.NewOrderHandler(orderSvc, receiptStore)
 	exchangeH := handler.NewExchangeRateHandler(exchangeSvc)
 	bannerH := handler.NewBannerHandler(bannerSvc)
 
-	r := router.New(authSvc, authH, categoryH, productH, orderH, exchangeH, bannerH)
+	r := router.New(authSvc, authH, categoryH, productH, orderH, exchangeH, bannerH, cfg.UploadDir)
 
 	addr := ":" + cfg.Port
 	srv := &http.Server{

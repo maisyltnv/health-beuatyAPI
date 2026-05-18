@@ -34,9 +34,13 @@ services:
       JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-72}
       SHIPPING_FEE_LAK: ${SHIPPING_FEE_LAK:-30000}
       FREE_SHIPPING_MIN_SUBTOTAL_LAK: ${FREE_SHIPPING_MIN_SUBTOTAL_LAK:-500000}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - health_and_beauty_uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   health_and_beauty_pgdata:
+  health_and_beauty_uploads:

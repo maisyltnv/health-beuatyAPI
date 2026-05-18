@@ -17,8 +17,10 @@ WORKDIR /app
 
 COPY --from=builder /server ./server
 
+RUN mkdir -p /app/uploads/payment-receipts && chmod -R 777 /app/uploads
+
 ENV PORT=8080
+ENV UPLOAD_DIR=/app/uploads
 EXPOSE 8080
 
-USER nobody
 ENTRYPOINT ["/app/server"]

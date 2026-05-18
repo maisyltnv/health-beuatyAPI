@@ -4,21 +4,24 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"shopapi/internal/middleware"
 	"shopapi/internal/model"
 	"shopapi/internal/service"
+	"shopapi/internal/upload"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type OrderHandler struct {
-	orders *service.OrderService
+	orders   *service.OrderService
+	receipts *upload.PaymentReceiptStore
 }
 
-func NewOrderHandler(orders *service.OrderService) *OrderHandler {
-	return &OrderHandler{orders: orders}
+func NewOrderHandler(orders *service.OrderService, receipts *upload.PaymentReceiptStore) *OrderHandler {
+	return &OrderHandler{orders: orders, receipts: receipts}
 }
 
 type orderLineRequest struct {
@@ -71,34 +74,19 @@ func (h *OrderHandler) QuoteShipping(c *gin.Context) {
 	c.JSON(http.StatusOK, h.orders.QuoteShipping(subtotal))
 }
 
-// Place creates an order (public — no login required; guest orders use user_id 0).
+// Place creates an order (public). Accepts JSON or multipart/form-data (with payment_receipt file).
 func (h *OrderHandler) Place(c *gin.Context) {
+	ct := strings.ToLower(c.GetHeader("Content-Type"))
+	if strings.HasPrefix(ct, "multipart/form-data") {
+		h.placeMultipart(c)
+		return
+	}
 	var req placeOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	lines := make([]service.OrderLineInput, 0, len(req.Items))
-	for _, it := range req.Items {
-		lines = append(lines, service.OrderLineInput{ProductID: it.ProductID, Quantity: it.Quantity})
-	}
-	o, err := h.orders.Place(c.Request.Context(), service.PlaceOrderInput{
-		UserID: 0,
-		Lines:  lines,
-		Shipping: service.ShippingInput{
-			RecipientName: req.Shipping.RecipientName,
-			Phone:         req.Shipping.Phone,
-			Province:      req.Shipping.Province,
-			AddressDetail: req.Shipping.AddressDetail,
-		},
-		PaymentMethod:     req.PaymentMethod,
-		PaymentReceiptURL: req.PaymentReceiptURL,
-	})
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusCreated, o)
+	h.placeFromRequest(c, req, "")
 }
 
 // List returns all orders (admin only).

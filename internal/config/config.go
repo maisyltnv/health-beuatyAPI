@@ -11,8 +11,10 @@ type Config struct {
 	DatabaseURL               string
 	JWTSecret                 string
 	JWTExpiryH                int
-	ShippingFeeLAK            float64
+	ShippingFeeLAK             float64
 	FreeShippingMinSubtotalLAK float64
+	UploadDir                  string
+	UploadURLPrefix            string
 }
 
 // Load reads configuration from environment variables with sensible defaults for local dev.
@@ -30,6 +32,8 @@ func Load() Config {
 		JWTExpiryH:                 expiry,
 		ShippingFeeLAK:             getenvFloat("SHIPPING_FEE_LAK", 30000),
 		FreeShippingMinSubtotalLAK: getenvFloat("FREE_SHIPPING_MIN_SUBTOTAL_LAK", 500000),
+		UploadDir:                  getenv("UPLOAD_DIR", "uploads"),
+		UploadURLPrefix:            getenv("UPLOAD_URL_PREFIX", "/uploads"),
 	}
 }
 

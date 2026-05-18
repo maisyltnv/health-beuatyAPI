@@ -19,6 +19,7 @@ func New(
 	orderH *handler.OrderHandler,
 	exchangeH *handler.ExchangeRateHandler,
 	bannerH *handler.BannerHandler,
+	uploadDir string,
 ) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
@@ -41,6 +42,10 @@ func New(
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	if uploadDir != "" {
+		r.Static("/uploads", uploadDir)
+	}
 
 	authGroup := r.Group("/auth")
 	{
