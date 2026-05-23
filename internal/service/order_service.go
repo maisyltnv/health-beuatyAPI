@@ -317,6 +317,49 @@ func (s *OrderService) ListAll(ctx context.Context, limit, offset int) ([]model.
 	return s.orders.ListAll(ctx, limit, offset)
 }
 
+// OrderSourceLink is a supplier/procurement URL for one order line (admin).
+type OrderSourceLink struct {
+	OrderItemID uint64 `json:"order_item_id"`
+	ProductID   uint64 `json:"product_id"`
+	ProductName string `json:"product_name"`
+	Quantity    int    `json:"quantity"`
+	SourceURL   string `json:"source_url"`
+}
+
+// OrderSourceLinksResult groups procurement links for an order.
+type OrderSourceLinksResult struct {
+	OrderID     uint64            `json:"order_id"`
+	OrderNumber string            `json:"order_number"`
+	Links       []OrderSourceLink `json:"links"`
+}
+
+// SourceLinks returns supplier URLs for each line on an order (admin procurement).
+func (s *OrderService) SourceLinks(ctx context.Context, orderID uint64) (*OrderSourceLinksResult, error) {
+	o, err := s.orders.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	links := make([]OrderSourceLink, 0, len(o.Items))
+	for _, it := range o.Items {
+		url := ""
+		if it.Product != nil {
+			url = strings.TrimSpace(it.Product.SourceURL)
+		}
+		links = append(links, OrderSourceLink{
+			OrderItemID: it.ID,
+			ProductID:   it.ProductID,
+			ProductName: it.ProductName,
+			Quantity:    it.Quantity,
+			SourceURL:   url,
+		})
+	}
+	return &OrderSourceLinksResult{
+		OrderID:     o.ID,
+		OrderNumber: o.OrderNumber,
+		Links:       links,
+	}, nil
+}
+
 func normalizeOrderPagination(limit, offset int) (int, int) {
 	if limit <= 0 {
 		limit = 50

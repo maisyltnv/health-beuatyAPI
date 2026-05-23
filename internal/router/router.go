@@ -87,6 +87,7 @@ func New(
 		protected.DELETE("/products/:id", productH.Delete)
 
 		protected.GET("/orders", middleware.RequireAdmin(), orderH.List)
+		protected.GET("/orders/:id/source-links", middleware.RequireAdmin(), orderH.GetSourceLinks)
 		protected.GET("/orders/:id", orderH.Get)
 		protected.PUT("/orders/:id/status", middleware.RequireAdmin(), orderH.UpdateStatus)
 

@@ -171,3 +171,22 @@ func (h *OrderHandler) Get(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, o)
 }
+
+// GetSourceLinks returns procurement URLs per line item (admin only).
+func (h *OrderHandler) GetSourceLinks(c *gin.Context) {
+	id, err := parseUintParam(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	res, err := h.orders.SourceLinks(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
